@@ -1,13 +1,24 @@
 import { apiClient } from "../apiClient";
-import { EstimateRideInput } from "../../../app/requests/requestRide.interface";
+import { IEstimateRideInput } from "../../../app/requests/requestRide.interface";
 
-export const estimateRide = async (data: EstimateRideInput) => {
+export const postEstimateRide = async (data: IEstimateRideInput) => {
   try {
     const response = await apiClient.post('/ride/estimate', data)
     return response
   } catch (err) {
     throw new Error('Erro ao obter os dados. Tente novamente. Details: ' + err);
   }
-
 }
+
+export const patchConfirmRide = async (data: { userId: string, rideOptionId: string }) => {
+  try {
+    const response = await apiClient.patch('/ride/confirm', data)
+    return response
+  } catch (err) {
+    throw new Error('Erro ao obter os dados. Tente novamente. Details: ' + err);
+  }
+}
+
+
+
 

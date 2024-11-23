@@ -3,20 +3,42 @@
 import { useState } from 'react';
 // import { useRouter } from 'next/router';
 // import { apiClient } from '@/services/api/apiClient';
-import { RideOption } from './requestRide.interface';
-import { getRideEstimate } from '@/services/api/requestRide/requestRide.service';
+import { IRideOptions, IRideRequest, IDriver } from './requestRide.interface';
+import { estimateRide, confirmRide } from '@/services/api/requestRide/requestRide.service';
+import { FaStar } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
 
 
+interface Rating {
+  value: number;
+  description: string;
+}
+
+// interface RideRequest {
+//   customer_id: string;
+//   driver: {
+//     id: string;
+//     name: string;
+//   },
+//   origin: string;
+//   destination: string;
+//   distance: number;
+//   duration: string;
+//   value: number;
+// }
 
 
 
 export default function RequestRide() {
-  const [userId, setUserId] = useState('');
+  const [userId, setUserId] = useState<string>('');
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [error, setError] = useState('');
-  const [rideOption, setRideOption] = useState<RideOption[] | null>(null);
+  const [rideOptions, setRideOptions] = useState<IRideOptions[] | null>(null);
+  const [mapUrl, setMapUrl] = useState<string>('');
+  const [selectedDriver, setSelectedDriver] = useState<IRideRequest>();
 
+  const router = useRouter();
   // const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,27 +53,113 @@ export default function RequestRide() {
     setError(''); // Resetar erro
 
     try {
-      // console.log('userId', userId, 'origin', origin, 'destination', destination)
-      // Requisição para a API de estimativa de viagem
-      // const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ride/estimate`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ userId, origin, destination }),
-      // });
+      const r = await estimateRide({ userId, origin, destination });
+      // console.log('response', r);
+      // console.log('rideOption', rideOptions);
+      const googleMapsUrl = `https://maps.googleapis.com/maps/api/staticmap?size=600x400&markers=color:blue%7Clabel:A%7C${origin}&markers=color:red%7Clabel:B%7C${destination}&path=color:0x0000ff|weight:3|${origin}|${destination}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+      setMapUrl(googleMapsUrl);
 
-      // const response = await apiClient.post('/ride/estimate', { userId, origin, destination })
-      const r = await getRideEstimate({ userId, origin, destination })
-      console.log('response', r)
-      console.log('rideOption', rideOption)
-      setRideOption(r.availableDrivers)
+      const data: IRideOptions[] = [];
+
+      r.availableDrivers.forEach((driver: IRideOptions) => {
+        data.push({
+          distanceValue: r.googleResp.distanceValue,
+          durationValue: r.googleResp.durationValue,
+          distance: r.googleResp.distance,
+          duration: r.googleResp.duration,
+          // value: number,
+          // origin: origin,
+          // destination: destination,
+          id: driver.id,
+          name: driver.name,
+          car: driver.car,
+          description: driver.description,
+          rating: {
+            value: driver.rating.value,
+            description: driver.rating.description,
+          },
+          price: driver.price,
+        });
+
+      })
+
+      // console.log('data', data)
+
+
+      setRideOptions(data)
+
       // const data = await response.json();
       // setRideOptions(data); // Supondo que a resposta seja um objeto com informações de motoristas
     } catch (err) {
       setError('Erro ao obter os dados. Tente novamente. Details: ' + err);
     }
-  };
+  }
+
+  const handleChooseDriver = async (driverId: string) => {
+    const selectedOpt = rideOptions?.find(opt => opt.id === driverId);
+
+    if (!selectedOpt) {
+      setError('Erro ao selecionar motorista');
+      return;
+    }
+
+    const data: IRideRequest = {
+      customer_id: userId,
+      driver: {
+        id: driverId,
+        name: selectedOpt.name,
+      },
+      origin,
+      destination,
+      distance: selectedOpt.distance,
+      duration: selectedOpt.duration,
+      distanceValue: selectedOpt.distanceValue,
+      durationValue: selectedOpt.durationValue,
+      value: parseFloat(selectedOpt.price),
+    }
+    console.log('data', data);
+
+    await setSelectedDriver(data);
+    console.log('selectedDriver', selectedDriver);
+    try {
+      const r = await confirmRide(data);
+      console.log('response', r);
+      // redirecionar tela hist viagens
+
+      // const navigate = useNavigate();
+      // router.push('/rides'); 
+      // router.push({
+      //   pathname:  `/rides/${r._id}`,
+      //   query: { rideData: encodeURIComponent(rideData) }
+      // });
+      // router.push(`/rides/${r._id}`);
+      router.push(`/rides/history`);
+
+    } catch (err) {
+      setError('Erro ao confirmar a viagem. Tente novamente. Details: ' + err);
+    }
+  }
+
+  function renderStars(ratingVal: number) {
+    const filledStars = Math.floor(ratingVal)
+    const hasHalfStar = ratingVal % 1 >= 0.5
+    const emptyStars = 5 - Math.ceil(ratingVal)
+    const stars = []
+
+    for (let i = 0; i < filledStars; i++) {
+      stars.push(<FaStar key={i} color="yellow" />)
+    }
+    if (hasHalfStar) {
+      stars.push(<FaStar key="half" color="yellow" />)
+    }
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(<FaStar key={i + filledStars} color="gray" />)
+    }
+    // return stars
+    return <div className="flex items-center">{stars}</div>
+  }
+
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
@@ -96,6 +204,7 @@ export default function RequestRide() {
         <button
           type="submit"
           className="w-full bg-blue-500 text-white font-medium rounded-lg py-2 mt-4 hover:bg-blue-600 transition"
+
         >
           Estimar Valor da Viagem
         </button>
@@ -103,30 +212,59 @@ export default function RequestRide() {
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       </form>
 
-      {rideOption && (
+      {mapUrl && (
+        <div className="mt-8">
+          <h2>Rota Estimada</h2>
+          <img src={mapUrl} alt="Map Route" className="w-full h-auto rounded-lg shadow-lg mt-4" />
+
+        </div>
+      )}
+
+      {rideOptions && (
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {rideOption.map((option) => (
+        {rideOptions.map((option) => (
           <div
             key={option.id}
             className="bg-white shadow-md rounded-lg p-4 flex flex-col items-start border border-gray-200 hover:shadow-lg transition-shadow"
           >
-            {/* <div className="top-2 right-2 bg-indigo-600 text-white text-sm font-semibold py-1 px-3 rounded-lg shadow">
-              {option.price}
-            </div>
-            <h3 className="text-lg font-semibold text-gray-800">{option.name}</h3> */}
             <div className="flex items-center justify-between w-full">
               <h3 className="text-lg font-bold text-gray-800">{option.name}</h3>
-              <div className="bg-indigo-500 text-white text-small font-semibold py-1 px-3 rounded-lg shadow">R$ {option.price}</div>
+              <div className="bg-indigo-500 text-white text-small font-semibold py-1 px-3 rounded-lg shadow">
+                R$ {option.price}
+              </div>
+
             </div>
-            <p className="mt-2 text-sm text-gray-600">Carro: {option.car}</p>
-            <p className="text-sm text-gray-600">Descrição: {option.description}</p>
-            {/* <p className="text-sm text-gray-600">Valor: <span className="font-bold text-gray-800">{option.price}</span></p> */}
-            <p className="text-sm text-gray-600">
-              Avaliação: <span className="font-bold text-gray-800">{option.rating.value}</span>
-            </p>
-            <p className="text-sm text-gray-600">{option.rating.description}</p>
+
+            <div className="flex items-center mt-2">
+              {renderStars(option.rating.value)}
+            </div>
+
+
+            <div className="w-full mt-4">
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-800">Carro: </span>{option.car}
+              </p>
+            </div>
+
+
+            <div className="w-full mt-2">
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-800">Descrição: </span>{option.description}
+              </p>
+            </div>
+
+
+            <div className="w-full mt-2">
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-800">Avaliações: </span>
+                {option.rating.description}
+              </p>
+            </div>
+
+
             <button
-              className="mt-auto w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors justify-center"
+              className=" mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors justify-center"
+              onClick={() => handleChooseDriver(option.id)}
             >
               Escolher
             </button>
