@@ -1,3 +1,4 @@
+import { Toaster } from 'sonner';
 import '../styles/globals.css';
 
 // export const metadata = {
@@ -8,7 +9,10 @@ import '../styles/globals.css';
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Toaster richColors position="top-right" expand={true} />
+        {children}
+      </body>
     </html>
   );
 }

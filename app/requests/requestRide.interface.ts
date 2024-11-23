@@ -49,7 +49,7 @@ export interface IRideRequest {
   distanceValue: number,
   durationValue: number,
   duration: string,
-  value: number,
+  value: string,
 }
 
 // export interface IRideSearch {

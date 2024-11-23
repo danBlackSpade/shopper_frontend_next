@@ -3,16 +3,18 @@
 import { useState } from 'react';
 // import { useRouter } from 'next/router';
 // import { apiClient } from '@/services/api/apiClient';
-import { IRideOptions, IRideRequest, IDriver } from './requestRide.interface';
+import { IRideOptions, IRideRequest } from './requestRide.interface';
 import { estimateRide, confirmRide } from '@/services/api/requestRide/requestRide.service';
 import { FaStar } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+// import { toast } from 'sonner';
 
 
-interface Rating {
-  value: number;
-  description: string;
-}
+// interface Rating {
+//   value: number;
+//   description: string;
+// }
 
 // interface RideRequest {
 //   customer_id: string;
@@ -83,15 +85,11 @@ export default function RequestRide() {
 
       })
 
-      // console.log('data', data)
-
-
       setRideOptions(data)
 
-      // const data = await response.json();
-      // setRideOptions(data); // Supondo que a resposta seja um objeto com informações de motoristas
     } catch (err) {
-      setError('Erro ao obter os dados. Tente novamente. Details: ' + err);
+      console.log('error', err);
+      setError('Erro ao obter os dados. Tente novamente. ');
     }
   }
 
@@ -115,7 +113,7 @@ export default function RequestRide() {
       duration: selectedOpt.duration,
       distanceValue: selectedOpt.distanceValue,
       durationValue: selectedOpt.durationValue,
-      value: parseFloat(selectedOpt.price),
+      value: selectedOpt.price,
     }
     console.log('data', data);
 
@@ -124,15 +122,7 @@ export default function RequestRide() {
     try {
       const r = await confirmRide(data);
       console.log('response', r);
-      // redirecionar tela hist viagens
 
-      // const navigate = useNavigate();
-      // router.push('/rides'); 
-      // router.push({
-      //   pathname:  `/rides/${r._id}`,
-      //   query: { rideData: encodeURIComponent(rideData) }
-      // });
-      // router.push(`/rides/${r._id}`);
       router.push(`/rides/history`);
 
     } catch (err) {
@@ -215,7 +205,13 @@ export default function RequestRide() {
       {mapUrl && (
         <div className="mt-8">
           <h2>Rota Estimada</h2>
-          <img src={mapUrl} alt="Map Route" className="w-full h-auto rounded-lg shadow-lg mt-4" />
+          <Image
+          src={mapUrl}
+          alt="Map Route" 
+          className="w-full h-auto rounded-lg shadow-lg mt-4" 
+          width={400}
+          height={300}
+          />
 
         </div>
       )}
@@ -225,7 +221,7 @@ export default function RequestRide() {
         {rideOptions.map((option) => (
           <div
             key={option.id}
-            className="bg-white shadow-md rounded-lg p-4 flex flex-col items-start border border-gray-200 hover:shadow-lg transition-shadow"
+            className="bg-white shadow-md rounded-lg p-4 flex flex-col h-full items-start border border-gray-200 hover:shadow-lg transition-shadow"
           >
             <div className="flex items-center justify-between w-full">
               <h3 className="text-lg font-bold text-gray-800">{option.name}</h3>
@@ -261,7 +257,7 @@ export default function RequestRide() {
               </p>
             </div>
 
-
+            <div className="flex-1" />
             <button
               className=" mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors justify-center"
               onClick={() => handleChooseDriver(option.id)}

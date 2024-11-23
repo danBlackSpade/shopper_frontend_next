@@ -1,50 +1,52 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 import { getCustomerRides } from '@/services/api/rides/rides.routes';
 import { getDrivers } from '@/services/api/users/users.routes';
+// import { toast } from 'sonner';
 
-interface Ride {
-  id: string;
-  date: string;
-  time: string;
-  driverName: string;
-  origin: string;
-  destination: string;
-  distance: number;
-  duration: string;
-  value: number;
-}
+// interface Ride {
+//   id: string;
+//   date: string;
+//   time: string;
+//   driverName: string;
+//   origin: string;
+//   destination: string;
+//   distance: number;
+//   duration: string;
+//   value: number;
+// }
 
 export default function HistoryPage() {
   const [userId, setUserId] = useState<string>('');
   const [driverFilter, setDriverFilter] = useState<string>('all');
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>('');
   const [rides, setRides] = useState<IRide[]>([]); // List of rides
   const [drivers, setDrivers] = useState<IDriver[]>([]); // Example drivers
   const [error, setError] = useState<string>('');
-  const router = useRouter();
+  // const router = useRouter();
 
   interface IDriver {
-    _id: string;
+    id: string;
     name: string;
+    // id: string;
   }
   interface IRide {
     id: string,
     date: string,
     destination: string,
-    distance: number,
+    distance: string,
     driver: IDriver,
-    duration: number,
+    duration: string,
     _id: string,
     origin: string,
-    value: number,
+    value: string,
     time: string,
   }
 
   useEffect(() => {
 
     getDriversData();
-    console.log('@@@rides', rides);
   }, []);
 
   async function getDriversData() {
@@ -58,14 +60,13 @@ export default function HistoryPage() {
 
     console.log('@@ drivers', drivers);
     drivers.map((driver: IDriver) => {
-      if (driverList.filter((d) => d._id === driver._id).length === 0) {
-        driverList.push({ _id: driver._id, name: driver.name });
+      if (driverList.filter((d) => d.id === driver.id).length === 0) {
+        driverList.push({ id: driver.id, name: driver.name });
       }
       // driverList.push({ id: driver.id, name: driver.name });
     });
     setDrivers(driverList);
     // return driverList;
-    console.log('$$$$$driversLIST', driverList);
   }
 
 
@@ -74,15 +75,17 @@ export default function HistoryPage() {
       setError('Por favor, insira o ID do usuário.');
       return;
     }
+    // if (selectedDriverId === 'all') {
+    //   await setSelectedDriverId(null);
+    // }
     setError('');
-    try {
 
-      console.log('@@@userId', userId);
-      const response = await getCustomerRides(userId).then((res) => {
-        console.log(res)
+    console.log('@@@selectedDriverId', selectedDriverId);
+
+    try {
+      const response = await getCustomerRides(userId, selectedDriverId).then((res) => {
         return res
       })
-      console.log(response)
 
 //       Ao aplicar o filtro, deve exibir a lista das viagens realizadas, com:
 // ○ data e hora da viagem.
@@ -99,7 +102,7 @@ export default function HistoryPage() {
         date: new Date(ride.date).toLocaleDateString(),
         time: new Date(ride.date).toLocaleTimeString(),
         driver: {
-          _id: ride.driver._id,
+          id: ride.driver.id,
           name: ride.driver.name,
         },
         origin: ride.origin,
@@ -114,13 +117,21 @@ export default function HistoryPage() {
       //     ? response.data
       //     : response.data.rides.filter((ride: IRide) => ride.driver.name === driverFilter);
 
+
       setRides(filteredRides);
     } catch (err) {
-      setError('Erro ao carregar histórico de viagens. Por favor, tente novamente.' + err);
+      // console.log(err);
+      if (err instanceof Error) {
+        setError(err.message);
+      }
+      // setError(err.message);
     }
   };
 
-  console.log('@@@rides', rides);
+  function transformDateUsToBr(date: string) {
+    const [day, month, year] = date.split('/');
+    return `${day}/${month}/${year}`;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
@@ -149,13 +160,19 @@ export default function HistoryPage() {
           <label className="block text-gray-700 font-medium mb-1">Motorista</label>
           <select
             value={driverFilter}
-            onChange={(e) => setDriverFilter(e.target.value)}
+            onChange={(e) => {
+              setDriverFilter(e.target.value);
+              setSelectedDriverId(e.target.value);
+            }}
             className="w-full border border-gray-300 rounded-lg p-2 text-gray-800 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+            // onChange={(e) => }
           >
-            <option value="all">Todos os motoristas</option>
+            {drivers && drivers.length > 0 && (
+              <option value={'all'}>Todos os motoristas</option>
+            )}
             {drivers && drivers.length > 0 ? (
               drivers.map((driver) => (
-                <option key={driver._id} value={driver.name}>
+                <option key={driver.id} value={driver.id}>
                   {driver.name}
                 </option>
               ))
@@ -190,7 +207,7 @@ export default function HistoryPage() {
                 <div className="flex justify-between items-center mb-4 font-semibold">
                   <h3 className="text-lg font-bold text-gray-800 ">Viagem</h3>
                   <p className="text-sm text-gray-600">
-                    {ride.date} às{' '}
+                    {transformDateUsToBr(ride.date)} às{' '}
                     {ride.time}
                   </p>
                 </div>
@@ -207,10 +224,10 @@ export default function HistoryPage() {
                   <span className="font-semibold text-gray-800">Distância:</span> {ride.distance}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <span className="font-semibold text-gray-800">Duração:</span> {ride.duration}
+                  <span className="font-semibold text-gray-800">Duração:</span> {ride.duration.replace('hours', 'horas').replace('mins', 'minutos')}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <span className="font-semibold text-gray-800">Valor:</span> R$ {ride.value.toFixed(2)}
+                  <span className="font-semibold text-gray-800">Valor:</span> R$ {ride.value}
                 </p>
               </li>
             ))}
